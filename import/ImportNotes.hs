@@ -44,3 +44,5 @@ ingestCommit conn repo notesRef commit = do
     notes <- readNotes repo notesRef commit
     let testEnvs = toMetrics notes
     mapM_ (\(testEnvName, metrics) -> addMetrics conn commit testEnvName metrics) (M.toList testEnvs)
+    putStrLn "Refresh last_value_mv"
+    execute_ conn [sql| REFRESH MATERIALIZED VIEW last_value_mv |]

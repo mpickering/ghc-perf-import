@@ -24,36 +24,42 @@ ensureTestEnvExists conn testEnv = do
 addMetrics :: Connection
            -> Commit -> TestEnvName -> M.Map MetricName Double -> IO Int64
 addMetrics conn commit testEnv tests = withTransaction conn $ do
+    putStrLn "Inserting tests"
     executeMany conn
         [sql| INSERT INTO tests (test_name)
               VALUES (?)
               ON CONFLICT (test_name) DO NOTHING|]
         (map Only $ M.keys tests)
 
+    putStrLn "Selecting tests"
     testIds <- M.fromList <$> query conn
         [sql| SELECT test_name, test_id
               FROM tests
               WHERE test_name IN ? |]
         (Only $ In $ M.keys tests)
 
+    putStrLn "Inserting commits"
     execute conn
         [sql| INSERT INTO commits (commit_sha)
               VALUES (?)
               ON CONFLICT DO NOTHING |]
         (Only commit)
 
+    putStrLn "Selecting commits"
     [Only commitId] <- query conn
         [sql| SELECT commit_id
               FROM commits
               WHERE commit_sha = ? |]
         (Only commit)
 
+    putStrLn "Inserting environments"
     execute conn
         [sql| INSERT INTO test_envs (test_env_name)
               VALUES (?)
               ON CONFLICT (test_env_name) DO NOTHING |]
         (Only testEnv)
 
+    putStrLn "Selecting environments"
     [Only testEnvId] <- query conn
         [sql| SELECT test_env_id
               FROM test_envs
