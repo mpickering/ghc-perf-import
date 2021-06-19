@@ -32,10 +32,11 @@ class GHCPerfWebhookServer(WebhookServer):
         self.conn_string = conn_string
 
     def handle_job_event(self, event) -> None:
+        logging.info('event: %s' % event)
         if event['build_status'] != 'success':
+            logging.info('build_status failed')
             return
 
-        logging.info('event: %s' % event)
         proj_id = event['project_id']
         job_id = event['build_id']
         project = self.gl.projects.get(proj_id)

@@ -7,7 +7,7 @@ let
   f = { mkDerivation, aeson, attoparsec, base, bytestring
       , containers, dlist, filepath, lens, lens-regex-pcre, lzma
       , optparse-applicative, pcre-light, postgresql-simple, process
-      , regex-compat, servant, servant-server, stdenv, template-haskell
+      , regex-compat, servant, servant-server, split, stdenv, template-haskell
       , text, time, transformers, wai, warp, cassava
       }:
       mkDerivation {
@@ -18,12 +18,12 @@ let
         isExecutable = true;
         libraryHaskellDepends = [
           base bytestring containers filepath lens lens-regex-pcre pcre-light
-          postgresql-simple process template-haskell text time cassava
+          postgresql-simple process template-haskell text time cassava split
         ];
         executableHaskellDepends = [
           aeson attoparsec base bytestring containers dlist filepath lzma
           optparse-applicative postgresql-simple process regex-compat servant
-          servant-server template-haskell text time transformers wai warp
+          servant-server template-haskell text time transformers wai warp split
         ];
         license = stdenv.lib.licenses.bsd3;
       };
