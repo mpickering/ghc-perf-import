@@ -57,6 +57,7 @@ let
 in {
   users.users.ghc_perf = {
     description = "User for ghc-perf import script";
+    isSystemUser = true;
   };
 
   systemd.services.ghc-perf-gitlab-import-bot = {
