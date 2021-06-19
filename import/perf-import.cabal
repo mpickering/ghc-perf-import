@@ -1,7 +1,7 @@
 name:                perf-import
 version:             0.1.0.0
--- synopsis:            
--- description:         
+-- synopsis:
+-- description:
 license:             BSD3
 license-file:        LICENSE
 author:              Ben Gamari
@@ -30,6 +30,7 @@ library
                        pcre-light,
                        template-haskell,
                        process,
+                       split,
                        time >= 1.6
 
 executable perf-import-nofib
@@ -84,6 +85,7 @@ executable perf-import-head-hackage
                        postgresql-simple,
                        containers,
                        text,
+                       split,
                        optparse-applicative >= 0.12,
                        perf-import
 

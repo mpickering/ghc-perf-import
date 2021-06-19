@@ -81,6 +81,8 @@ class GHCPerfWebhookServer(WebhookServer):
 
         # Run import tool
         cmd = ['perf-import-head-hackage']
+        cmd += ['-i', job.get_id() ]
+        cmd += ['-j', job.name ]
         cmd += ['-c', self.conn_string]
         cmd += ['-C', commit]
         cmd += [str(log) for log in logs]

@@ -23,13 +23,16 @@ import GhcPerf.Import.Utils
 newtype PackageName = PackageName T.Text
   deriving (Show, Eq, Ord)
 
+newtype Version = Version T.Text
+  deriving (Show, Eq, Ord)
+
 newtype ModuleName = ModuleName T.Text
   deriving (Show, Eq, Ord)
 
 newtype PassName = PassName T.Text
   deriving (Show, Eq, Ord)
 
-newtype Measurements = Measurements (M.Map (PackageName, ModuleName, PassName) Metrics)
+newtype Measurements = Measurements (M.Map (PackageName, Version, ModuleName, PassName) Metrics)
   deriving (Show)
 
 instance Monoid Measurements where
@@ -46,8 +49,8 @@ instance Semigroup Metrics where
                      , time = time a + time b
                      }
 
-parseLog :: PackageName -> T.Text -> Measurements
-parseLog pkg =
+parseLog :: (PackageName, Version) -> T.Text -> Measurements
+parseLog (pkg, ver) =
     foldMapOf (regex re . groups) f . sanitize
   where
     sanitize = T.filter isAscii -- due to https://github.com/ChrisPenner/lens-regex-pcre/issues/4
@@ -61,16 +64,16 @@ parseLog pkg =
             read' s
               | (x, ""):_ <- reads s = x
               | otherwise = error $ "failed to parse: "<>show grps
-         in Measurements $ M.singleton (pkg, ModuleName mod, PassName pass) (Metrics alloc' time')
-    
+         in Measurements $ M.singleton (pkg, ver, ModuleName mod, PassName pass) (Metrics alloc' time')
+
 toMetrics :: Measurements -> M.Map MetricName Double
-toMetrics (Measurements ms) = 
+toMetrics (Measurements ms) =
     M.fromList
     $ concat
     [ [ (name "alloc", realToFrac alloc)
       , (name "time", time)
       ]
-    | ((PackageName pkgName, ModuleName modName, PassName passName), Metrics alloc time) <- M.toList ms
+    | ((PackageName pkgName, _, ModuleName modName, PassName passName), Metrics alloc time) <- M.toList ms
     , let name s = MetricName $ intercalate "/" [T.unpack pkgName, T.unpack modName, T.unpack passName, s]
     ]
 

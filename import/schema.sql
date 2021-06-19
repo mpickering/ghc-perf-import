@@ -1,3 +1,4 @@
+-- DROP DATABASE ghc_perf;
 CREATE DATABASE ghc_perf;
 \c ghc_perf
 
@@ -29,8 +30,12 @@ CREATE TABLE result_srcs
     , result_date timestamptz
     );
 
+create table provenance ( provenance_id serial PRIMARY KEY, name text unique );
+
+
 CREATE TABLE results
     ( result_id serial PRIMARY KEY
+    , provenance_id serial REFERENCES provenance(provenance_id)
     , commit_id integer REFERENCES commits (commit_id)
     , test_env_id integer REFERENCES test_envs (test_env_id)
     , test_id integer REFERENCES tests (test_id)
@@ -56,6 +61,27 @@ CREATE TABLE branch_commits
     , UNIQUE (branch_id, sequence_n)
     );
 CREATE INDEX ON branch_commits (branch_id);
+
+CREATE TABLE head_hackage_results (
+  head_hackage_result_id serial PRIMARY KEY,
+  provenance_id serial REFERENCES provenance(provenance_id),
+  commit_id integer REFERENCES commits(commit_id),
+  job_name text,
+  package text,
+  version text,
+  module text,
+  compiler_pass text,
+  allocs real,
+  time real
+);
+
+create view head_hackage_results_view as
+  select
+    commit_sha, commit_date,
+    package, version, module, compiler_pass, allocs,
+    commit_title
+  from head_hackage_results as r
+  inner join commits on commits.commit_id = r.commit_id;
 
 
 -------------------------------------
@@ -83,6 +109,7 @@ CREATE VIEW results_view AS
     INNER JOIN branch_commits USING (commit_id)
     INNER JOIN branches USING (branch_id);
 
+-- DROP USER ghc_perf_web;
 CREATE USER ghc_perf_web WITH PASSWORD 'ghc';
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO ghc_perf_web;
 
@@ -147,6 +174,31 @@ CREATE VIEW deltas2 AS
       AND tests.test_id = rx.test_id
       AND test_envs.test_env_id = rx.test_env_id;
 
+-------------------------------------
+-- Geometric mean aggregation
+-------------------------------------
+
+CREATE TYPE geom_mean_accum AS (prod real, n integer);
+CREATE FUNCTION geom_mean_acc(s geom_mean_accum, v real)
+RETURNS geom_mean_accum
+AS $$ BEGIN
+    RETURN ((s).prod * v, (s).n + 1);
+END $$ LANGUAGE plpgsql;
+
+CREATE FUNCTION geom_mean_final(s geom_mean_accum)
+RETURNS real
+AS $$ BEGIN
+    RETURN (s).prod^(1.0 / (s).n);
+END $$ LANGUAGE plpgsql;
+
+CREATE AGGREGATE geom_mean(real)
+(
+    sfunc = geom_mean_acc,
+    stype = geom_mean_accum,
+    initcond = '(1,0)',
+    finalfunc = geom_mean_final
+);
+
 CREATE VIEW test_deltas AS
     WITH x AS (
         SELECT   r_ref.test_env_id as test_env_id
@@ -156,8 +208,8 @@ CREATE VIEW test_deltas AS
                  OVER (PARTITION BY r_ref.test_env_id, r_ref.commit_id, ry.commit_id) AS geom_mean
         FROM   results AS r_ref
         INNER JOIN results ry
-           ON ry.test_id = r_ref.test_id 
-          AND ry.test_env_id = r_ref.test_env_id 
+           ON ry.test_id = r_ref.test_id
+          AND ry.test_env_id = r_ref.test_env_id
         GROUP BY r_ref.test_env_id, r_ref.commit_id, ry.commit_id
     )
 
@@ -193,28 +245,4 @@ CREATE VIEW commit_metric_counts AS
              , commits.commit_date
              , commits.commit_title;
 
--------------------------------------
--- Geometric mean aggregation
--------------------------------------
-
-CREATE TYPE geom_mean_accum AS (prod real, n integer);
-CREATE FUNCTION geom_mean_acc(s geom_mean_accum, v real)
-RETURNS geom_mean_accum
-AS $$ BEGIN
-    RETURN ((s).prod * v, (s).n + 1);
-END $$ LANGUAGE plpgsql;
-
-CREATE FUNCTION geom_mean_final(s geom_mean_accum)
-RETURNS real
-AS $$ BEGIN
-    RETURN (s).prod^(1.0 / (s).n);
-END $$ LANGUAGE plpgsql;
-
-CREATE AGGREGATE geom_mean(real)
-(
-    sfunc = geom_mean_acc,
-    stype = geom_mean_accum,
-    initcond = '(1,0)',
-    finalfunc = geom_mean_final
-);
 
