@@ -33,8 +33,10 @@ class GHCPerfWebhookServer(WebhookServer):
 
     def handle_job_event(self, event) -> None:
         logging.info('event: %s' % event)
-        if event['build_status'] != 'success':
-            logging.info('build_status failed')
+        if event['build_status'] == 'success' or event['build_status'] == 'failed':
+            pass
+        else:
+            logging.info('Skipping')
             return
 
         proj_id = event['project_id']
