@@ -45,7 +45,7 @@ class GHCPerfWebhookServer(WebhookServer):
             job = project.jobs.get(job_id)
             with tempfile.TemporaryDirectory() as tmp_dir:
                 self._process_nofib_job(job, Path(tmp_dir))
-        elif project.name == "ghc/head.hackage":
+        elif project.name == "head.hackage":
             job = project.jobs.get(job_id)
             with tempfile.TemporaryDirectory() as tmp_dir:
                 self._process_head_hackage_job(job, Path(tmp_dir))
@@ -82,7 +82,7 @@ class GHCPerfWebhookServer(WebhookServer):
 
         # Run import tool
         cmd = ['perf-import-head-hackage']
-        cmd += ['-i', job.get_id() ]
+        cmd += ['-i', str(job.get_id()) ]
         cmd += ['-j', job.name ]
         cmd += ['-c', self.conn_string]
         cmd += ['-C', commit]
