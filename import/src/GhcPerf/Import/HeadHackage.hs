@@ -35,6 +35,9 @@ newtype PassName = PassName T.Text
 newtype Measurements = Measurements (M.Map (PackageName, Version, ModuleName, PassName) Metrics)
   deriving (Show)
 
+isEmptyMeasurements :: Measurements -> Bool
+isEmptyMeasurements (Measurements m) = M.null m
+
 instance Monoid Measurements where
     mempty = Measurements M.empty
 

@@ -44,9 +44,9 @@ importLog conn job_id job_name commit logPath = do
         parsed :: Measurements
         parsed = parseLog (pkgName, version) contents
     print (pkgName, version, parts, logPath, baseName)
-    -- Do not force "parsed" here.. some logs take a long time to parse so
-    -- if you end up skipping the import it takes much longer.
-    void $ addMeasurements conn (job_id <> "/" <> T.pack baseName) job_name commit parsed
+    if isEmptyMeasurements parsed
+      then return ()
+      else void $ addMeasurements conn (job_id <> "/" <> T.pack baseName) job_name commit parsed
 
 -- | Check to see whether we have already inserted this job, and if not,
 -- run the continuation with the id
