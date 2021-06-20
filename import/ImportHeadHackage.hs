@@ -104,6 +104,8 @@ addMeasurements conn job_id job_name commit measures = withTransaction conn $ wi
                   | let Measurements ms = measures
                   , ((PackageName pkgName, Version version, ModuleName modName, PassName passName), Metrics alloc time) <- M.toList ms
                   ]
+
+    putStrLn ("Inserting: " ++ show (length results))
     executeMany conn
         [sql| INSERT INTO head_hackage_results (provenance_id, commit_id, job_name, package, version, module, compiler_pass, allocs, time)
               VALUES (?,?,?,?,?,?,?,?,?)
