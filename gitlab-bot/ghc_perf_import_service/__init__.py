@@ -12,7 +12,7 @@ from gitlab_webhook import WebhookServer
 from gitlab.v4.objects import ProjectJob
 
 import tempfile
-from tarfile import TarFile
+from tarfile import TarFile, ReadError
 from zipfile import ZipFile
 from pathlib import Path
 import json
@@ -73,7 +73,11 @@ class GHCPerfWebhookServer(WebhookServer):
 
     def _process_head_hackage_job(self, job: ProjectJob, tmp_dir: Path):
         logging.info(f'Processing head.hackage job {job.id}...')
-        self._fetch_head_hackage_artifacts(job, tmp_dir)
+        try:
+            self._fetch_head_hackage_artifacts(job, tmp_dir)
+        except ReadError:
+            logging.info(f'No results file for {job.id}')
+            return
 
         summary = json.load((tmp_dir / 'results.json').open())
         comp_info = dict(summary['compilerInfo'])
