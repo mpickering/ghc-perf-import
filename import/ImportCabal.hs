@@ -16,46 +16,46 @@ import GhcPerf.Import.HeadHackage
 import GhcPerf.Import.Utils
 import GhcPerf.Import.Types
 import Data.Int
-import Data.List.Split
+import Data.Char
 import Data.List (intercalate)
 
 testEnv :: TestEnvName
-testEnv = TestEnvName "head-hackage"
+testEnv = TestEnvName "cabal-test"
 
-args :: Parser (String, T.Text, T.Text, Commit, [FilePath])
+args :: Parser (String, T.Text, [FilePath])
 args =
-    (,,,,)
+    (,,)
       <$> option str (short 'c' <> long "conn-string" <> help "PostgreSQL connection string")
       <*> option (T.pack <$> str) (short 'i' <> long "job-id" <> help "Job Id")
-      <*> option (T.pack <$> str) (short 'j' <> long "job-name" <> help "Job Name")
-      <*> option (Commit <$> str) (short 'C' <> long "commit" <> help "which commit these logs were computed from")
-      <*> some (argument str (help "log files"))
+      <*> some (argument str (help "log dirs"))
 
+strip_newline = reverse . dropWhile isSpace . reverse
 
-importLog :: Connection -> T.Text -> T.Text ->  Commit -> FilePath -> IO ()
-importLog conn job_id job_name commit logPath = do
-    contents <- TIO.readFile logPath
-    let pkgName = PackageName $ T.pack $ pkg
-        baseName = takeBaseName logPath
-        parts = splitOn "-" baseName
-        pkg = intercalate "-" (init parts)
-        version = Version $ T.pack $ last parts
+importLog :: Connection -> T.Text -> FilePath -> IO ()
+importLog conn job_id logDir = do
+    ghc_commit <- Commit . strip_newline <$> readFile (logDir </> "ghc_commit")
+    cabal_commit <- T.strip <$> TIO.readFile (logDir </> "cabal_commit")
+    forM_ [0,1,2] $ \opt_level -> do
+      contents <- TIO.readFile (logDir </> ("Cabal-O" <> show opt_level) </> "log")
+      let pkgName = PackageName $ "Cabal"
+          version = Version $ cabal_commit
 
-        parsed :: Measurements
-        parsed = parseLog (pkgName, version) contents
-    print (pkgName, version, parts, logPath, baseName)
-    if isEmptyMeasurements parsed
-      then return ()
-      else void $ addMeasurements conn (job_id <> "/" <> T.pack baseName) job_name commit parsed
+          parsed :: Measurements
+          parsed = parseLog (pkgName, version) contents
+      print (pkgName, version)
+      if isEmptyMeasurements parsed
+        then return ()
+        else void $ addMeasurements conn (job_id <> "/" <> T.pack (show opt_level)) ghc_commit opt_level parsed
+
 
 
 addMeasurements :: Connection
            -> T.Text
-           -> T.Text
            -> Commit
+           -> Int
            -> Measurements
            -> IO Int64
-addMeasurements conn job_id job_name commit measures = withTransaction conn $ withProvenanceId conn job_id $ \pid ->  do
+addMeasurements conn job_id commit opt_level measures = withTransaction conn $ withProvenanceId conn job_id $ \pid ->  do
 
     execute conn
         [sql| INSERT INTO commits (commit_sha)
@@ -70,23 +70,23 @@ addMeasurements conn job_id job_name commit measures = withTransaction conn $ wi
               WHERE commit_sha = ? |]
         (Only commit)
 
-    let results :: [(Int64, Int, T.Text, T.Text, T.Text, T.Text, T.Text,
+    let results :: [(Int64, Int, T.Text, Int, T.Text, T.Text,
                         Integer, Double)]
-        results = [ (pid, commitId, job_name, pkgName, version, modName, passName, alloc, time)
+        results = [ (pid, commitId, version, opt_level, modName, passName, alloc, time)
                   | let Measurements ms = measures
                   , ((PackageName pkgName, Version version, ModuleName modName, PassName passName), Metrics alloc time) <- M.toList ms
                   ]
 
     putStrLn ("Inserting: " ++ show (length results))
     executeMany conn
-        [sql| INSERT INTO head_hackage_results (provenance_id, commit_id, job_name, package, version, module, compiler_pass, allocs, time)
-              VALUES (?,?,?,?,?,?,?,?,?)
+        [sql| INSERT INTO cabal_results (provenance_id, commit_id, version, opt_level, module, compiler_pass, allocs, time)
+              VALUES (?,?,?,?,?,?,?,?)
         |]
         results
 
 main :: IO ()
 main = do
-    (connString, job_id, job_name, commit, logFiles) <- execParser $ info (helper <*> args) mempty
+    (connString, job_id, logDirs) <- execParser $ info (helper <*> args) mempty
     conn <- connectPostgreSQL $ BS.pack connString
-    mapM_ (importLog conn job_id job_name commit) logFiles
+    mapM_ (importLog conn job_id) logDirs
 

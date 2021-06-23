@@ -1,4 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module GhcPerf.Import.Utils where
 
@@ -6,6 +8,7 @@ import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.SqlQQ
 import qualified Data.Map.Strict as M
 import Data.Int
+import qualified Data.Text as T
 
 import GhcPerf.Import.Types
 
@@ -76,3 +79,31 @@ addMetrics conn commit testEnv tests = withTransaction conn $ do
               VALUES (?,?,?,?)
               ON CONFLICT DO NOTHING |]
         results
+
+
+-- | Check to see whether we have already inserted this job, and if not,
+-- run the continuation with the id
+withProvenanceId :: Connection -> T.Text -> (Int64 -> IO Int64) -> IO Int64
+withProvenanceId conn job_id k = do
+    (prov_id :: [Only Int64]) <- query conn
+        [sql| SELECT provenance_id
+              FROM provenance
+              WHERE name = ?
+              LIMIT 1 |]
+        (Only $ job_id)
+    case prov_id of
+      -- Already inserted this job
+      [Only p_id] -> print ("Skipping:" <> job_id) >> return 0
+      [] ->  do
+        execute conn
+          [sql| INSERT INTO provenance (name)
+                VALUES (?)
+          |]
+          (Only job_id)
+        [Only prov_id] <- query conn
+          [sql| SELECT provenance_id
+                FROM provenance
+                WHERE name = ?
+                LIMIT 1 |]
+          (Only $ job_id)
+        k prov_id

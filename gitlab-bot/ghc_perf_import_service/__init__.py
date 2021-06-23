@@ -51,6 +51,11 @@ class GHCPerfWebhookServer(WebhookServer):
             job = project.jobs.get(job_id)
             with tempfile.TemporaryDirectory() as tmp_dir:
                 self._process_head_hackage_job(job, Path(tmp_dir))
+        elif event.build_name == "perf":
+            job = project.jobs.get(job_id)
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                self._process_cabal_job(job, Path(tmp_dir))
+
         else:
             logging.warn(f'unexpected project name {project.name}')
 
@@ -95,10 +100,28 @@ class GHCPerfWebhookServer(WebhookServer):
         cmd += [str(log) for log in logs]
         subprocess.run(cmd, check=True)
 
+    def _process_cabal_job(self, job: ProjectJob, tmp_dir: Path):
+        logging.info(f'Processing cabal job {job.id}...')
+        try:
+            self._fetch_cabal_artifacts(job, tmp_dir)
+        except ReadError:
+            logging.info(f'No results file for {job.id}')
+            return
+
+        # Run import tool
+        cmd = ['perf-import-cabal']
+        cmd += ['-i', str(job.get_id()) ]
+        cmd += ['-c', self.conn_string]
+        cmd += [tmp_dir / 'out']
+        subprocess.run(cmd, check=True)
+
     def _fetch_head_hackage_artifacts(self, job: ProjectJob, out_dir: Path):
         self._fetch_job_artifacts(job, out_dir)
         with TarFile.open(out_dir / 'results.tar.xz') as archive:
             archive.extractall(path=out_dir)
+
+    def _fetch_cabal_artifacts(self, job: ProjectJob, out_dir: Path):
+        self._fetch_job_artifacts(job, out_dir)
 
     def _fetch_job_artifacts(self, job: ProjectJob, out_dir: Path):
         """
@@ -121,6 +144,7 @@ def main() -> None:
     parser.add_argument('--conn-string', type=str, required=True, help='PostgreSQL connection string')
     parser.add_argument('--test-nofib', type=int, help='nofib job to test')
     parser.add_argument('--test-head-hackage', type=int, help='head.hackage job to test')
+    parser.add_argument('--test-cabal', type=int, help='cabal job to test')
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
@@ -139,6 +163,12 @@ def main() -> None:
         job = project.jobs.get(args.test_head_hackage)
         with tempfile.TemporaryDirectory() as tmp_dir:
             server._process_head_hackage_job(job, Path(tmp_dir))
+
+    elif args.test_cabal is not None:
+        project = gl.projects.get('ghc/ghc')
+        job = project.jobs.get(args.test_cabal)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            server._process_cabal_job(job, Path(tmp_dir))
 
     else:
         server.run()

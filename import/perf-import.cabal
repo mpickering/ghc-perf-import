@@ -89,6 +89,18 @@ executable perf-import-head-hackage
                        optparse-applicative >= 0.12,
                        perf-import
 
+executable perf-import-cabal
+  main-is:             ImportCabal.hs
+  default-language:    Haskell2010
+  build-depends:       base,
+                       bytestring,
+                       filepath,
+                       postgresql-simple,
+                       containers,
+                       text,
+                       optparse-applicative >= 0.12,
+                       perf-import
+
 
 executable perf-import-gitlab-hook
   main-is:             HookMain.hs

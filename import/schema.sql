@@ -75,6 +75,18 @@ CREATE TABLE head_hackage_results (
   time real
 );
 
+CREATE TABLE cabal_results (
+  cabal_result_id serial PRIMARY KEY,
+  provenance_id serial REFERENCES provenance(provenance_id),
+  commit_id integer REFERENCES commits(commit_id),
+  version text,
+  opt_level integer,
+  module text,
+  compiler_pass text,
+  allocs real,
+  time real
+);
+
 create view head_hackage_results_view as
   select
     commit_sha, commit_date,
