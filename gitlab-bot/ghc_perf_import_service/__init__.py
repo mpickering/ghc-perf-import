@@ -51,7 +51,7 @@ class GHCPerfWebhookServer(WebhookServer):
             job = project.jobs.get(job_id)
             with tempfile.TemporaryDirectory() as tmp_dir:
                 self._process_head_hackage_job(job, Path(tmp_dir))
-        elif event.build_name == "perf":
+        elif event['build_name'] == "perf":
             job = project.jobs.get(job_id)
             with tempfile.TemporaryDirectory() as tmp_dir:
                 self._process_cabal_job(job, Path(tmp_dir))
