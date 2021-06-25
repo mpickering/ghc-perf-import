@@ -1,3 +1,47 @@
+# Status June 2021
+
+There are 4 different performance tests which we want to import statistics for:
+
+* GHC Performance Tests
+* Cabal test
+* Head.hackage
+* Nofib
+
+| Metric       | Table Name           | Pipeline Job           | Import Method     | Status                                                                          |
+|--------------|----------------------|------------------------|-------------------|---------------------------------------------------------------------------------|
+| GHC Perf     | results              | master/per environment | Git Notes         | Import is not idempotent or using provenance table, import does not use webhook |
+| Cabal test   | cabal_results        | perf                   | Webhook/Artifacts | Table populating                                                                |
+| Head.hackage | head_hackage_results | nightly-hackage        | Webhook/Artifacts | Table populating                                                                |
+| Nofib        | -                    | nofib/nofib            | Webhook/Artifacts | Build is currently broken, no import taking place                               |
+
+Ultimately we want to make all four of these methods use the webhook in order
+to populate the database.
+
+## TODO List
+
+### GHC Perf
+
+* Fiddly: Migrate the results table to add a provenance column
+* Modify the import script to use provenance column and to avoid using ON CONFLICT
+* Trigger the import based on suitable completed jobs rather than scheduled nightly(?)
+
+## Cabal Test
+
+* Create grafana dashboard once the table is populated
+* Create a (materialised) view which joins commit_id on master commits
+
+## Head.hackage
+
+* Think about how to best alert about bad regressions
+
+## Nofib
+
+* Fix the CI build and then work out what needs to be done, at least there needs to be
+a new table definition and the scripts modified to use provenance ID.
+
+
+
+
 # Tools for working with ghc-speed history
 
 `perf-import` takes validate logs, picks out the juicy performance number from
