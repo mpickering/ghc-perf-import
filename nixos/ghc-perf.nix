@@ -55,6 +55,9 @@ let
   '';
 
 in {
+
+  imports = [ ./alerts/nixos.nix ];
+
   users.users.ghc_perf = {
     description = "User for ghc-perf import script";
     isSystemUser = true;
