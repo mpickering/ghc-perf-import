@@ -96,7 +96,7 @@ in {
     wants = [ "network.target" ];
     wantedBy = [ "multi-user.target" ];
     timerConfig = {
-      OnCalendar = "hourly";
+      OnCalendar = "*-*-* 8:00:00";
       Unit = "ghc-note-perf-import.service";
     };
   };
