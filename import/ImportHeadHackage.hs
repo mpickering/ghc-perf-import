@@ -41,12 +41,14 @@ importLog conn job_id job_name commit logPath = do
         pkg = intercalate "-" (init parts)
         version = Version $ T.pack $ last parts
 
-        parsed :: Measurements
+        parsed :: Maybe Measurements
         parsed = parseLog (pkgName, version) contents
-    print (pkgName, version, parts, logPath, baseName)
-    if isEmptyMeasurements parsed
-      then return ()
-      else void $ addMeasurements conn (job_id <> "/" <> T.pack baseName) job_name commit parsed
+    case parsed of
+      Nothing -> print ("Failed", pkgName, version)
+      Just m | isEmptyMeasurements m -> print ("No Measurements", pkgName, version)
+      Just m -> do
+        print ("Importing", pkgName, version, parts, logPath, baseName)
+        void $ addMeasurements conn (job_id <> "/" <> T.pack baseName) job_name commit m
 
 
 addMeasurements :: Connection

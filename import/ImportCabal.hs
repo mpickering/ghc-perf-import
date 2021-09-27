@@ -40,12 +40,14 @@ importLog conn job_id logDir = do
       let pkgName = PackageName $ "Cabal"
           version = Version $ cabal_commit
 
-          parsed :: Measurements
+          parsed :: Maybe Measurements
           parsed = parseLog (pkgName, version) contents
       print (pkgName, version)
-      if isEmptyMeasurements parsed
-        then return ()
-        else void $ addMeasurements conn (job_id <> "/" <> T.pack (show opt_level)) ghc_commit opt_level parsed
+      case parsed of
+        Nothing -> return ()
+        Just m | isEmptyMeasurements m -> return ()
+        Just m ->
+          void $ addMeasurements conn (job_id <> "/" <> T.pack (show opt_level)) ghc_commit opt_level m
 
 
 

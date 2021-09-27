@@ -52,12 +52,15 @@ instance Semigroup Metrics where
                      , time = time a + time b
                      }
 
-parseLog :: (PackageName, Version) -> T.Text -> Measurements
-parseLog (pkg, ver) =
-    foldMapOf (regex re . groups) f . sanitize
+parseLog :: (PackageName, Version) -> T.Text -> Maybe Measurements
+parseLog (pkg, ver) log =
+    case has (regex success) log of
+      True -> Just $ foldMapOf (regex re . groups) f . sanitize $ log
+      False -> Nothing
   where
     sanitize = T.filter isAscii -- due to https://github.com/ChrisPenner/lens-regex-pcre/issues/4
     re = [mrx|(*UTF)^([\w\d/ ]+) \[([\w\d\.]+)\]: alloc=(\d+) time=(\d+\.\d+)|]
+    success = [mrx|^Installing|]
     f grps
       | [pass,mod,alloc,time] <- grps =
         let alloc' = read' $ T.unpack alloc
