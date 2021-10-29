@@ -42,7 +42,7 @@ importLog conn job_id job_name commit logPath = do
         version = Version $ T.pack $ last parts
 
         parsed :: Maybe Measurements
-        parsed = parseLog (pkgName, version) contents
+        parsed = parseHeadHackageLog (pkgName, version) contents
     case parsed of
       Nothing -> print ("Failed", pkgName, version)
       Just m | isEmptyMeasurements m -> print ("No Measurements", pkgName, version)

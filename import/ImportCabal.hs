@@ -36,18 +36,18 @@ importLog conn job_id logDir = do
     ghc_commit <- Commit . strip_newline <$> readFile (logDir </> "ghc_commit")
     cabal_commit <- T.strip <$> TIO.readFile (logDir </> "cabal_commit")
     forM_ [0,1,2] $ \opt_level -> do
-      contents <- TIO.readFile (logDir </> ("Cabal-O" <> show opt_level) </> "log")
+      let fname = (logDir </> ("Cabal-O" <> show opt_level) </> "log")
+      contents <- TIO.readFile fname
       let pkgName = PackageName $ "Cabal"
           version = Version $ cabal_commit
 
-          parsed :: Maybe Measurements
+          parsed :: Measurements
           parsed = parseLog (pkgName, version) contents
-      print (pkgName, version)
-      case parsed of
-        Nothing -> return ()
-        Just m | isEmptyMeasurements m -> return ()
-        Just m ->
-          void $ addMeasurements conn (job_id <> "/" <> T.pack (show opt_level)) ghc_commit opt_level m
+      print (pkgName, version, fname)
+      if isEmptyMeasurements parsed
+        then print ("No measurements: " ++ fname)
+        else
+          void $ addMeasurements conn (job_id <> "/" <> T.pack (show opt_level)) ghc_commit opt_level parsed
 
 
 

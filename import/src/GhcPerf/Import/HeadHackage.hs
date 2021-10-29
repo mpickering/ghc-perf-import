@@ -51,16 +51,22 @@ instance Semigroup Metrics where
     a <> b = Metrics { allocations = allocations a + allocations b
                      , time = time a + time b
                      }
-
-parseLog :: (PackageName, Version) -> T.Text -> Maybe Measurements
-parseLog (pkg, ver) log =
+-- | Also check to see the whole build succeeded.
+parseHeadHackageLog :: (PackageName, Version) -> T.Text -> Maybe Measurements
+parseHeadHackageLog (pkg, ver) log =
     case has (regex success) log of
-      True -> Just $ foldMapOf (regex re . groups) f . sanitize $ log
+      True ->  Just $ parseLog (pkg, ver) log
       False -> Nothing
+  where
+    success = [mrx|^Installing|]
+
+-- Careful modifying this because it's used to parse both head.hackage and cabal logs
+-- which are subtly different.
+parseLog :: (PackageName, Version) -> T.Text -> Measurements
+parseLog (pkg, ver) log = foldMapOf (regex re . groups) f . sanitize $ log
   where
     sanitize = T.filter isAscii -- due to https://github.com/ChrisPenner/lens-regex-pcre/issues/4
     re = [mrx|(*UTF)^([\w\d/ ]+) \[([\w\d\.]+)\]: alloc=(\d+) time=(\d+\.\d+)|]
-    success = [mrx|^Installing|]
     f grps
       | [pass,mod,alloc,time] <- grps =
         let alloc' = read' $ T.unpack alloc
